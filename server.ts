@@ -12,6 +12,12 @@ const __dirname = path.dirname(__filename);
 const db = new Database("vibeshop.db");
 db.pragma('foreign_keys = ON');
 
+const app = express();
+const PORT = 3000;
+
+app.use(cors());
+app.use(bodyParser.json());
+
 // Initialize Database
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -55,12 +61,6 @@ db.exec(`
 `);
 
 async function startServer() {
-  const app = express();
-  const PORT = 3000;
-
-  app.use(cors());
-  app.use(bodyParser.json());
-
   // Auth Routes
   app.get("/api/winning-products", (req, res) => {
     const { niche, language } = req.query;
@@ -193,4 +193,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Export the app for Vercel serverless functions
+export default app;
+
+if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+  startServer();
+}
