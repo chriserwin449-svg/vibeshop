@@ -27,6 +27,15 @@ import { cn } from '../lib/utils';
 export const Reports: React.FC = () => {
   const { t, language } = useLanguage();
   const { store } = useStore();
+  const [timeFilter, setTimeFilter] = React.useState('weekly');
+
+  const filters = [
+    { id: 'daily', label: language === 'fr' ? 'Quotidien' : 'Daily' },
+    { id: '3days', label: language === 'fr' ? '3 Jours' : '3 Days' },
+    { id: 'weekly', label: language === 'fr' ? 'Hebdomadaire' : 'Weekly' },
+    { id: 'biweekly', label: language === 'fr' ? 'Bi-mensuel' : 'Bi-weekly' },
+    { id: 'monthly', label: language === 'fr' ? 'Mensuel' : 'Monthly' },
+  ];
 
   const insights = [
     {
@@ -71,12 +80,23 @@ export const Reports: React.FC = () => {
           </motion.div>
           <h1 className="text-5xl font-black tracking-tight text-white">{language === 'fr' ? 'Rapports de Performance' : 'Performance Reports'}</h1>
         </div>
-        <div className="flex gap-4">
-          <button className="px-6 py-3 glass-cosmic border border-white/10 rounded-2xl font-bold text-slate-300 hover:bg-white/5 transition-all flex items-center gap-2 shadow-sm">
-            <Download className="w-5 h-5" /> {language === 'fr' ? 'Exporter PDF' : 'Export PDF'}
-          </button>
-          <button className="px-6 py-3 bg-neon-yellow text-night-blue rounded-2xl font-bold hover:scale-105 transition-all shadow-lg neon-glow-yellow">
-            {language === 'fr' ? 'Planifier le Rapport' : 'Schedule Report'}
+        <div className="flex flex-wrap gap-3">
+          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+            {filters.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setTimeFilter(f.id)}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                  timeFilter === f.id ? "bg-neon-yellow text-night-blue shadow-lg neon-glow-yellow" : "text-slate-500 hover:text-slate-300"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <button className="px-6 py-3 glass-cosmic border border-white/10 rounded-xl font-bold text-slate-300 hover:bg-white/5 transition-all flex items-center gap-2 shadow-sm">
+            <Download className="w-5 h-5" /> {language === 'fr' ? 'Exporter' : 'Export'}
           </button>
         </div>
       </header>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Globe, 
   User, 
@@ -58,8 +58,82 @@ export const Settings: React.FC = () => {
     }
   ];
 
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const expectedText = language === 'fr' ? 'SUPPRIMER' : 'DELETE';
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== expectedText) return;
+    // Implement actual deletion logic here
+    alert(language === 'fr' ? 'Compte supprimé avec succès.' : 'Account successfully deleted.');
+    logout();
+  };
+
   return (
     <div className="p-10 space-y-12 max-w-5xl mx-auto relative z-10">
+      <AnimatePresence>
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="absolute inset-0 bg-night-blue/80 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative glass-cosmic p-10 rounded-[3rem] border border-rose-500/30 max-w-md w-full shadow-2xl"
+            >
+              <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-rose-500/20">
+                <AlertCircle className="w-10 h-10" />
+              </div>
+              <h3 className="text-3xl font-black text-white text-center mb-4 tracking-tight">
+                {language === 'fr' ? 'Êtes-vous sûr ?' : 'Are you sure?'}
+              </h3>
+              <p className="text-slate-400 text-center mb-8 font-medium leading-relaxed">
+                {language === 'fr' 
+                  ? 'Cette action est irréversible. Toutes vos boutiques, produits et données seront définitivement supprimés.' 
+                  : 'This action is irreversible. All your stores, products, and data will be permanently deleted.'}
+              </p>
+              
+              <div className="space-y-4 mb-8">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">
+                  {language === 'fr' 
+                    ? `Tapez "${expectedText}" pour confirmer` 
+                    : `Type "${expectedText}" to confirm`}
+                </p>
+                <input 
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value.toUpperCase())}
+                  placeholder={expectedText}
+                  className="w-full px-6 py-4 bg-white/5 border border-rose-500/20 rounded-2xl text-center font-black text-xl text-rose-500 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="flex-1 py-4 bg-white/5 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-colors"
+                >
+                  {language === 'fr' ? 'Annuler' : 'Cancel'}
+                </button>
+                <button 
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== expectedText}
+                  className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {language === 'fr' ? 'Supprimer' : 'Delete'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <header className="flex items-end justify-between">
         <div>
           <motion.div
@@ -249,7 +323,10 @@ export const Settings: React.FC = () => {
               <p className="text-rose-500/70 font-medium">{t('danger_desc')}</p>
             </div>
           </div>
-          <button className="px-8 py-4 bg-rose-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-900/20">
+          <button 
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="px-8 py-4 bg-rose-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-900/20"
+          >
             {t('delete_account')}
           </button>
         </section>

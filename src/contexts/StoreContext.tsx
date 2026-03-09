@@ -43,20 +43,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Load store from DB when user changes
   useEffect(() => {
-    const loadStore = async () => {
+    const loadStore = () => {
       if (user) {
         const saved = localStorage.getItem('vibe_user');
         if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.store) {
-            setStore({
-              ...parsed.store,
-              theme: JSON.parse(parsed.store.theme_json),
-              pages: JSON.parse(parsed.store.pages_json),
-              products: parsed.products
-            });
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed.store) {
+              // Safely parse JSON strings, handle cases where they might already be objects
+              const theme = typeof parsed.store.theme_json === 'string' 
+                ? JSON.parse(parsed.store.theme_json) 
+                : (parsed.store.theme || parsed.store.theme_json);
+                
+              const pages = typeof parsed.store.pages_json === 'string' 
+                ? JSON.parse(parsed.store.pages_json) 
+                : (parsed.store.pages || parsed.store.pages_json);
+
+              setStore({
+                ...parsed.store,
+                theme: theme,
+                pages: pages,
+                products: parsed.products || []
+              });
+            }
+            setPlanId(user.plan_id || 'free');
+          } catch (e) {
+            console.error('Error parsing saved store data:', e);
           }
-          setPlanId(user.plan_id);
         }
       } else {
         setStore(null);

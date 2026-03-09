@@ -2,6 +2,36 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
+/**
+ * Robust retry mechanism for Gemini API calls
+ * Handles 429 (Quota Exceeded) and other transient errors with exponential backoff
+ */
+async function callGeminiWithRetry(fn: () => Promise<any>, maxRetries = 5): Promise<any> {
+  let lastError: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      const isQuotaError = 
+        error.message?.includes("429") || 
+        error.status === 429 || 
+        error.message?.includes("RESOURCE_EXHAUSTED") ||
+        JSON.stringify(error).includes("429") ||
+        JSON.stringify(error).includes("RESOURCE_EXHAUSTED");
+      
+      if (isQuotaError && i < maxRetries - 1) {
+        const waitTime = Math.pow(2, i) * 3000; // 3s, 6s, 12s, 24s, 48s
+        console.warn(`Gemini Quota Exceeded (429). Retrying in ${waitTime}ms... (Attempt ${i + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -82,7 +112,7 @@ export const generateWinningProducts = async (niche: string, language: string): 
     Use picsum.photos for images: https://picsum.photos/seed/{keyword}/800/600
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await callGeminiWithRetry(() => ai.models.generateContent({
     model,
     contents: [
       { role: "user", parts: [{ text: `Find 6 winning products for the niche: ${niche}` }] }
@@ -125,7 +155,7 @@ export const generateWinningProducts = async (niche: string, language: string): 
         }
       }
     }
-  });
+  }));
 
   return JSON.parse(response.text || "[]") as WinningProduct[];
 };
@@ -147,7 +177,7 @@ export const generateVideoScript = async (product: Product, language: string): P
     Return a valid JSON object matching the VideoScript interface.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await callGeminiWithRetry(() => ai.models.generateContent({
     model,
     contents: [
       { role: "user", parts: [{ text: `Create a video script for ${product.name}` }] }
@@ -176,7 +206,7 @@ export const generateVideoScript = async (product: Product, language: string): P
         required: ["title", "scenes", "callToAction"]
       }
     }
-  });
+  }));
 
   return JSON.parse(response.text || "{}") as VideoScript;
 };
@@ -200,7 +230,7 @@ export const importShopifyData = async (url: string, apiKey: string, language: s
     Use picsum.photos for images: https://picsum.photos/seed/{keyword}/800/600
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await callGeminiWithRetry(() => ai.models.generateContent({
     model,
     contents: [
       { role: "user", parts: [{ text: `Migrate store from URL: ${url}` }] }
@@ -246,7 +276,7 @@ export const importShopifyData = async (url: string, apiKey: string, language: s
         required: ["products", "pages"]
       }
     }
-  });
+  }));
 
   return JSON.parse(response.text || "{}") as ShopifyImportResult;
 };
@@ -272,7 +302,7 @@ export const generateStore = async (prompt: string, currentStore?: StoreData): P
     For images, use high-quality Unsplash URLs via picsum.photos: https://picsum.photos/seed/{keyword}/800/600
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await callGeminiWithRetry(() => ai.models.generateContent({
     model,
     contents: [
       { role: "user", parts: [{ text: `User request: ${prompt}${currentStore ? `\n\nCurrent Store State: ${JSON.stringify(currentStore)}` : ""}` }] }
@@ -332,7 +362,7 @@ export const generateStore = async (prompt: string, currentStore?: StoreData): P
         required: ["name", "niche", "description", "theme", "products", "pages"]
       }
     }
-  });
+  }));
 
   return JSON.parse(response.text || "{}") as StoreData;
 };

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useStore } from '../contexts/StoreContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { Link } from 'react-router-dom';
 import { Video, Sparkles, Play, Download, Share2, Plus, Bot, Film, Wand2, RefreshCw, Eye, FileText } from 'lucide-react';
 import { generateVideoScript, VideoScript } from '../lib/gemini';
 
@@ -42,12 +43,47 @@ export const VideoMarketing: React.FC = () => {
       };
       setGeneratedVideos([newVideo, ...generatedVideos]);
       setActiveScript(script);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      const isQuotaError = error.message?.includes("429") || error.status === 429 || error.message?.includes("RESOURCE_EXHAUSTED");
+      if (isQuotaError) {
+        alert(language === 'fr' 
+          ? "Limite de quota atteinte. Veuillez réessayer dans quelques instants." 
+          : "Quota limit reached. Please try again in a few moments.");
+      }
     } finally {
       setIsGenerating(false);
     }
   };
+
+  if (plan.id === 'free') {
+    return (
+      <div className="p-10 flex flex-col items-center justify-center min-h-[70vh] text-center max-w-2xl mx-auto relative z-10">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="w-24 h-24 bg-neon-yellow/10 text-neon-yellow rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl neon-glow-yellow border border-neon-yellow/20"
+        >
+          <Video className="w-12 h-12" />
+        </motion.div>
+        <h1 className="text-4xl font-black text-white tracking-tight mb-4">
+          {language === 'fr' ? 'Marketing Vidéo IA' : 'AI Video Marketing'}
+        </h1>
+        <p className="text-xl text-slate-400 font-medium mb-10">
+          {language === 'fr' 
+            ? 'La génération de vidéos marketing par IA est réservée aux membres Pro et Ultra. Passez au niveau supérieur pour booster vos ventes.' 
+            : 'AI video marketing generation is reserved for Pro and Ultra members. Upgrade to the next level to boost your sales.'}
+        </p>
+        <Link 
+          to="/settings"
+          className="px-10 py-5 bg-neon-yellow text-night-blue rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl neon-glow-yellow hover:scale-105 transition-all flex items-center gap-3"
+        >
+          <Sparkles className="w-5 h-5" />
+          {language === 'fr' ? 'Voir les Forfaits' : 'View Plans'}
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="p-10 space-y-10 max-w-7xl mx-auto w-full relative z-10">

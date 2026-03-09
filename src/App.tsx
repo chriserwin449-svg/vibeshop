@@ -17,7 +17,17 @@ import { Register } from './pages/Register';
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-night-blue flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-neon-yellow/20 border-t-neon-yellow rounded-full animate-spin" />
+          <p className="text-neon-yellow font-black uppercase tracking-widest text-xs animate-pulse">VibeShop Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (!user) return <Navigate to="/login" replace />;
   
   return <>{children}</>;

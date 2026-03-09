@@ -30,6 +30,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Login failed with status ${res.status}: ${errorText}`);
+        return false;
+      }
+
       const data = await res.json();
       if (data.success) {
         setUser(data.user);
@@ -38,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return false;
     } catch (error) {
+      console.error('Network error during login:', error);
       return false;
     }
   };
@@ -49,6 +57,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, plan_id: planId })
       });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Registration failed with status ${res.status}: ${errorText}`);
+        return false;
+      }
+
       const data = await res.json();
       if (data.success) {
         setUser(data.user);
@@ -57,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return false;
     } catch (error) {
+      console.error('Network error during registration:', error);
       return false;
     }
   };

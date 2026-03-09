@@ -68,11 +68,34 @@ export const Dashboard: React.FC = () => {
   const { t, language } = useLanguage();
   const { store } = useStore();
 
-  const orders = [
-    { id: '#ORD-7821', customer: 'Alice Smith', date: language === 'fr' ? 'il y a 2 min' : '2 mins ago', amount: '$129.00', status: t('paid'), supplier: 'AliExpress' },
-    { id: '#ORD-7820', customer: 'Bob Johnson', date: language === 'fr' ? 'il y a 15 min' : '15 mins ago', amount: '$45.50', status: t('paid'), supplier: 'AliExpress' },
-    { id: '#ORD-7819', customer: 'Charlie Brown', date: t('hour_ago'), amount: '$89.99', status: t('paid'), supplier: 'AliExpress' },
-  ];
+  if (!store) {
+    return (
+      <div className="p-10 space-y-10 max-w-4xl mx-auto w-full relative z-10 flex flex-col items-center justify-center min-h-[70vh] text-center">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="w-24 h-24 bg-neon-yellow/10 text-neon-yellow rounded-[2rem] flex items-center justify-center mb-8 shadow-xl neon-glow-yellow border border-neon-yellow/20"
+        >
+          <Sparkles className="w-12 h-12" />
+        </motion.div>
+        <h1 className="text-4xl font-black text-white tracking-tight mb-4">
+          {language === 'fr' ? 'Bienvenue sur VibeShop' : 'Welcome to VibeShop'}
+        </h1>
+        <p className="text-xl text-slate-400 font-medium mb-10 max-w-2xl">
+          {language === 'fr' 
+            ? 'Commencez par créer votre première boutique pour débloquer les analyses, les suggestions IA et les outils produits.' 
+            : 'Start by creating your first store to unlock analytics, AI suggestions, and product tools.'}
+        </p>
+        <Link 
+          to="/builder"
+          className="px-10 py-5 bg-neon-yellow text-night-blue rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl neon-glow-yellow hover:scale-105 transition-all flex items-center gap-3"
+        >
+          <Plus className="w-5 h-5" />
+          {language === 'fr' ? 'Créer ma Boutique' : 'Create My Store'}
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="p-10 space-y-10 max-w-[1600px] mx-auto w-full relative z-10">
@@ -102,10 +125,10 @@ export const Dashboard: React.FC = () => {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-        <StatCard title={t('revenue')} value="$12,450.00" change="12.5" icon={DollarSign} positive />
-        <StatCard title={t('orders')} value="156" change="8.2" icon={ShoppingBag} positive />
-        <StatCard title={t('conversion_rate')} value="3.2%" change="2.1" icon={TrendingUp} positive />
-        <StatCard title={t('customers')} value="1,240" change="4.5" icon={Users} positive />
+        <StatCard title={t('revenue')} value="$0.00" change="0" icon={DollarSign} positive />
+        <StatCard title={t('orders')} value="0" change="0" icon={ShoppingBag} positive />
+        <StatCard title={t('conversion_rate')} value="0%" change="0" icon={TrendingUp} positive />
+        <StatCard title={t('customers')} value="0" change="0" icon={Users} positive />
         <motion.div 
           whileHover={{ y: -5 }}
           className="glass-cosmic p-8 rounded-[2rem] border border-white/5 flex flex-col justify-between"
@@ -133,45 +156,8 @@ export const Dashboard: React.FC = () => {
               <option className="bg-night-blue">{t('this_year')}</option>
             </select>
           </div>
-          <div className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FACC15" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#FACC15" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#FFFFFF08" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fontSize: 11, fill: '#64748B', fontWeight: 600}} 
-                  dy={15} 
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fontSize: 11, fill: '#64748B', fontWeight: 600}} 
-                  dx={-10}
-                />
-                <Tooltip 
-                  contentStyle={{backgroundColor: '#0B1E3F', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.5)', padding: '12px 16px'}}
-                  itemStyle={{fontWeight: 700, fontSize: '12px', color: '#FACC15'}}
-                  labelStyle={{fontWeight: 800, marginBottom: '4px', color: '#FFFFFF'}}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="sales" 
-                  stroke="#FACC15" 
-                  strokeWidth={4} 
-                  fillOpacity={1} 
-                  fill="url(#colorSales)" 
-                  animationDuration={2000}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="h-[350px] flex items-center justify-center bg-white/5 rounded-3xl border border-dashed border-white/10">
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('no_data_available')}</p>
           </div>
         </div>
 
@@ -196,7 +182,7 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate group-hover:text-neon-yellow transition-colors text-white">{product.name}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">{Math.floor(Math.random() * 50) + 10} {t('units_sold')}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">0 {t('units_sold')}</p>
                 </div>
                 <p className="text-sm font-black text-neon-green">${product.price}</p>
               </motion.div>
@@ -217,33 +203,8 @@ export const Dashboard: React.FC = () => {
         {/* Orders Table */}
         <div className="glass-cosmic p-10 rounded-[2.5rem] border border-white/5">
           <h3 className="text-xl font-black tracking-tight text-white mb-8">{t('orders')}</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left border-b border-white/5">
-                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('id')}</th>
-                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('customers')}</th>
-                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('date')}</th>
-                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('amount')}</th>
-                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('status')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {orders.map((order) => (
-                  <tr key={order.id} className="group hover:bg-white/5 transition-colors">
-                    <td className="py-4 text-sm font-bold text-slate-300">{order.id}</td>
-                    <td className="py-4 text-sm font-bold text-white">{order.customer}</td>
-                    <td className="py-4 text-sm font-medium text-slate-500">{order.date}</td>
-                    <td className="py-4 text-sm font-black text-neon-green">{order.amount}</td>
-                    <td className="py-4">
-                      <span className="px-3 py-1 bg-neon-green/10 text-neon-green rounded-full text-[10px] font-black uppercase tracking-widest">
-                        {order.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="h-[300px] flex items-center justify-center bg-white/5 rounded-3xl border border-dashed border-white/10">
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('no_orders_yet')}</p>
           </div>
         </div>
 

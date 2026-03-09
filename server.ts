@@ -10,6 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const db = new Database("vibeshop.db");
+db.pragma('foreign_keys = ON');
 
 // Initialize Database
 db.exec(`
@@ -43,6 +44,14 @@ db.exec(`
     category TEXT,
     FOREIGN KEY(store_id) REFERENCES stores(id)
   );
+
+  CREATE TABLE IF NOT EXISTS winning_products_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    niche TEXT,
+    language TEXT,
+    products_json TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 async function startServer() {
@@ -53,6 +62,37 @@ async function startServer() {
   app.use(bodyParser.json());
 
   // Auth Routes
+  app.get("/api/winning-products", (req, res) => {
+    const { niche, language } = req.query;
+    
+    // Check cache (valid for 3 days)
+    const cache = db.prepare(`
+      SELECT products_json FROM winning_products_cache 
+      WHERE niche = ? AND language = ? 
+      AND created_at > datetime('now', '-3 days')
+      ORDER BY created_at DESC LIMIT 1
+    `).get(niche, language);
+
+    if (cache) {
+      console.log(`Serving cached winning products for ${niche}`);
+      return res.json({ success: true, products: JSON.parse(cache.products_json) });
+    }
+
+    res.json({ success: false, message: "No cache found" });
+  });
+
+  app.post("/api/winning-products/cache", (req, res) => {
+    const { niche, language, products } = req.body;
+    try {
+      db.prepare("INSERT INTO winning_products_cache (niche, language, products_json) VALUES (?, ?, ?)").run(
+        niche, language, JSON.stringify(products)
+      );
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   app.post("/api/register", (req, res) => {
     const { name, email, password, plan_id } = req.body;
     console.log(`Registering user: ${email}`);
@@ -94,7 +134,17 @@ async function startServer() {
     const { user_id, name, niche, description, theme, pages, products } = req.body;
     console.log(`Saving store for user: ${user_id}`);
     
+    if (!user_id) {
+      return res.status(400).json({ success: false, error: "User ID is required" });
+    }
+
     try {
+      // Check if user exists first
+      const user = db.prepare("SELECT id FROM users WHERE id = ?").get(user_id);
+      if (!user) {
+        return res.status(404).json({ success: false, error: "User not found" });
+      }
+
       db.transaction(() => {
         // Upsert store
         const existingStore = db.prepare("SELECT id FROM stores WHERE user_id = ?").get(user_id);

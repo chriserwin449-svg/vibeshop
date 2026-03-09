@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useStore } from '../contexts/StoreContext';
+import { useAuth } from '../contexts/AuthContext';
 import { generateWinningProducts, WinningProduct } from '../lib/gemini';
 import { cn } from '../lib/utils';
 
@@ -37,12 +38,71 @@ export const WinningProducts: React.FC = () => {
     if (!store?.niche) return;
     setLoading(true);
     try {
+      // Try to fetch from cache first
+      const cacheResponse = await fetch(`/api/winning-products?niche=${encodeURIComponent(store.niche)}&language=${language}`);
+      if (cacheResponse.ok) {
+        const cachedData = await cacheResponse.json();
+        if (cachedData.success && cachedData.products && cachedData.products.length > 0) {
+          setProducts(cachedData.products);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If not in cache, generate new ones
       const data = await generateWinningProducts(store.niche, language);
       setProducts(data);
-    } catch (error) {
+
+      // Save to cache
+      await fetch('/api/winning-products/cache', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niche: store.niche, language, products: data })
+      });
+    } catch (error: any) {
       console.error(error);
+      const isQuotaError = error.message?.includes("429") || error.status === 429 || error.message?.includes("RESOURCE_EXHAUSTED");
+      if (isQuotaError) {
+        alert(language === 'fr' 
+          ? "Limite de quota atteinte. Veuillez réessayer dans quelques instants." 
+          : "Quota limit reached. Please try again in a few moments.");
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const { user } = useAuth(); // Need to import useAuth
+
+  const fetchFavorites = async () => {
+    if (!user?.id) return;
+    try {
+      const response = await fetch(`/api/favorites?userId=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setFavorites(data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchFavorites();
+  }, [user?.id]);
+
+  const handleSaveFavorite = async (product: WinningProduct) => {
+    if (!user?.id) return;
+    try {
+      await fetch('/api/favorites/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, product })
+      });
+      fetchFavorites();
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -244,28 +304,37 @@ export const WinningProducts: React.FC = () => {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleAddProduct(product)}
-                    disabled={addedIds.includes(product.id)}
-                    className={cn(
-                      "w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg",
-                      addedIds.includes(product.id)
-                        ? "bg-neon-green text-night-blue"
-                        : "bg-neon-yellow text-night-blue hover:scale-[1.02] active:scale-95 neon-glow-yellow"
-                    )}
-                  >
-                    {addedIds.includes(product.id) ? (
-                      <>
-                        <CheckCircle2 className="w-5 h-5" />
-                        {t('added_to_store')}
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-5 h-5" />
-                        {t('add_to_store')}
-                      </>
-                    )}
-                  </button>
+                  <div className="flex gap-3 mt-auto">
+                    <button
+                      onClick={() => handleAddProduct(product)}
+                      disabled={addedIds.includes(product.id)}
+                      className={cn(
+                        "flex-1 py-5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg",
+                        addedIds.includes(product.id)
+                          ? "bg-neon-green text-night-blue"
+                          : "bg-neon-yellow text-night-blue hover:scale-[1.02] active:scale-95 neon-glow-yellow"
+                      )}
+                    >
+                      {addedIds.includes(product.id) ? (
+                        <>
+                          <CheckCircle2 className="w-5 h-5" />
+                          {t('added_to_store')}
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-5 h-5" />
+                          {t('add_to_store')}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleSaveFavorite(product)}
+                      className="p-5 glass-cosmic border border-white/10 rounded-2xl text-slate-400 hover:text-neon-yellow hover:border-neon-yellow/30 transition-all"
+                      title={language === 'fr' ? 'Sauvegarder' : 'Save to Favorites'}
+                    >
+                      <Star className={cn("w-6 h-6", favorites.some(f => f.product.name === product.name) && "fill-neon-yellow text-neon-yellow")} />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
