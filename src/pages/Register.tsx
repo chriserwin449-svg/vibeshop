@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { PLANS } from '../constants';
+import { Logo } from '../components/Logo';
 
 export const Register: React.FC = () => {
   const { t, language } = useLanguage();
@@ -55,12 +56,15 @@ export const Register: React.FC = () => {
           <motion.div 
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
-            className="w-20 h-20 bg-neon-yellow/10 text-neon-yellow rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl neon-glow-yellow border border-neon-yellow/20"
+            className="w-24 h-24 bg-white/5 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-xl border border-white/10"
           >
-            <ShoppingBag className="w-10 h-10" />
+            <Logo variant="gold" className="w-16 h-16" />
           </motion.div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-2">VibeShop</h1>
-          <p className="text-slate-400 font-medium">{language === 'fr' ? 'Commencez votre empire aujourd\'hui' : 'Start your empire today'}</p>
+          <div className="flex flex-col items-center">
+            <h1 className="text-4xl font-black text-[#FDE047] tracking-tight">VibeShop</h1>
+            <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-[#FDE047]/70 mt-1">Your online store powered by AI</span>
+          </div>
+          <p className="text-slate-400 font-medium mt-4">{language === 'fr' ? 'Commencez votre empire aujourd\'hui' : 'Start your empire today'}</p>
         </div>
 
         <div className="glass-cosmic p-10 rounded-[3rem] border border-white/5 shadow-2xl">

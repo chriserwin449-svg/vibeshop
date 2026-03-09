@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { Stars } from '../components/Stars';
 import { cn } from '../lib/utils';
 import { Pricing } from '../components/Pricing';
+import { Logo } from '../components/Logo';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -30,12 +31,7 @@ export const Landing: React.FC = () => {
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-cosmic border-b border-white/5">
         <div className="container mx-auto px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-neon-yellow rounded-xl flex items-center justify-center shadow-lg shadow-neon-yellow/20">
-              <ShoppingBag className="text-night-blue w-5 h-5" />
-            </div>
-            <span className="text-xl font-black tracking-tighter text-white">VibeShop</span>
-          </div>
+          <Logo showText variant="gold" className="w-10 h-10" />
           <div className="hidden md:flex items-center gap-10 text-sm font-semibold text-slate-300">
             <a href="#features" className="hover:text-neon-yellow transition-colors">{t('features')}</a>
             <a href="#how-it-works" className="hover:text-neon-yellow transition-colors">{t('process')}</a>
@@ -251,12 +247,7 @@ export const Landing: React.FC = () => {
         <div className="container mx-auto px-8">
           <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-20">
             <div className="max-w-xs">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-8 h-8 bg-neon-yellow rounded-lg flex items-center justify-center">
-                  <ShoppingBag className="text-night-blue w-5 h-5" />
-                </div>
-                <span className="text-xl font-black tracking-tighter text-white">VibeShop</span>
-              </div>
+              <Logo showText variant="gold" className="w-10 h-10" />
               <p className="text-slate-400 leading-relaxed">{language === 'fr' ? "La plateforme e-commerce nativement IA pour la prochaine génération d'entrepreneurs." : "The AI-native ecommerce platform for the next generation of entrepreneurs."}</p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-16">

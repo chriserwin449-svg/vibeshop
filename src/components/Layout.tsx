@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Stars } from './Stars';
+import { Logo } from './Logo';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -37,11 +38,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <Stars />
       {/* Sidebar */}
       <aside className="w-72 border-r border-white/5 glass-cosmic flex flex-col relative z-20">
-        <div className="p-8 flex items-center gap-3">
-          <div className="w-10 h-10 bg-neon-yellow rounded-2xl flex items-center justify-center shadow-lg neon-glow-yellow">
-            <ShoppingBag className="text-night-blue w-6 h-6" />
-          </div>
-          <span className="text-2xl font-black tracking-tighter text-white">VibeShop</span>
+        <div className="p-8">
+          <Logo showText variant="gold" className="w-12 h-12" />
         </div>
 
         <div className="px-4 mb-4">
