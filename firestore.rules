@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    function isShopOwner(shopId) {
+      return isAuthenticated() && get(/databases/$(database)/documents/shops/$(shopId)).data.userId == request.auth.uid;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Shops collection
+    match /shops/{shopId} {
+      allow read: if true; // Publicly readable for store pages
+      allow write: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
+    }
+
+    // Products collection
+    match /products/{productId} {
+      allow read: if true; // Publicly readable for store pages
+      allow write: if isAuthenticated() && isShopOwner(request.resource.data.shopId || resource.data.shopId);
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && isShopOwner(resource.data.shopId);
+      allow create: if true; // Customers can create orders
+      allow update, delete: if isAuthenticated() && isShopOwner(resource.data.shopId);
+    }
+
+    // Favorites collection
+    match /favorites/{favoriteId} {
+      allow read, write: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
+    }
+
+    // Messages collection
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && isShopOwner(resource.data.shopId);
+      allow create: if true; // Customers can send messages
+      allow update, delete: if isAuthenticated() && isShopOwner(resource.data.shopId);
+    }
+
+    // Analytics collection
+    match /analytics/{analyticsId} {
+      allow read: if isAuthenticated() && isShopOwner(resource.data.shopId);
+      allow write: if true; // Analytics can be updated publicly (e.g., views)
+    }
+  }
+}

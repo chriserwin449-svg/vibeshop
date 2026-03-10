@@ -7,9 +7,6 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Plus,
-  Download,
-  Filter,
-  Search,
   Truck,
   CreditCard,
   UserCheck,
@@ -24,26 +21,15 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar
+  ResponsiveContainer
 } from 'recharts';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { db } from '../firebase';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useStore } from '../contexts/StoreContext';
 import { motion } from 'motion/react';
-import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import { Onboarding } from '../components/Onboarding';
-
-const data = [
-  { name: 'Mon', sales: 4000, traffic: 2400 },
-  { name: 'Tue', sales: 3000, traffic: 1398 },
-  { name: 'Wed', sales: 2000, traffic: 9800 },
-  { name: 'Thu', sales: 2780, traffic: 3908 },
-  { name: 'Fri', sales: 1890, traffic: 4800 },
-  { name: 'Sat', sales: 2390, traffic: 3800 },
-  { name: 'Sun', sales: 3490, traffic: 4300 },
-];
 
 const StatCard = ({ title, value, change, icon: Icon, positive }: any) => (
   <motion.div 
@@ -67,6 +53,56 @@ const StatCard = ({ title, value, change, icon: Icon, positive }: any) => (
 export const Dashboard: React.FC = () => {
   const { t, language } = useLanguage();
   const { store } = useStore();
+  const [analytics, setAnalytics] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  const chartData = React.useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    if (!analytics?.orders || analytics.orders.length === 0) {
+      return days.map(day => ({ name: day, sales: 0, traffic: 0 }));
+    }
+    
+    // Group orders by day of week
+    const grouped = analytics.orders.reduce((acc: any, order: any) => {
+      const date = new Date(order.createdAt);
+      const dayName = days[date.getDay()];
+      if (!acc[dayName]) acc[dayName] = { name: dayName, sales: 0, traffic: Math.floor(Math.random() * 500) + 100 };
+      acc[dayName].sales += order.totalAmount;
+      return acc;
+    }, {});
+
+    // Ensure all days are present
+    return days.map(day => grouped[day] || { name: day, sales: 0, traffic: Math.floor(Math.random() * 200) + 50 });
+  }, [analytics]);
+
+  const recentOrders = React.useMemo(() => {
+    if (!analytics?.orders) return [];
+    return analytics.orders.slice(0, 5);
+  }, [analytics]);
+
+  React.useEffect(() => {
+    const fetchAnalytics = async () => {
+      if (!store?.id) return;
+      setLoading(true);
+      try {
+        // Fetch orders
+        const ordersRef = collection(db, 'orders');
+        const q = query(ordersRef, where('shopId', '==', store.id), orderBy('createdAt', 'desc'), limit(50));
+        const querySnapshot = await getDocs(q);
+        const orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const totalRevenue = orders.reduce((sum: number, o: any) => sum + o.totalAmount, 0);
+        const totalOrders = orders.length;
+
+        setAnalytics({ totalRevenue, totalOrders, orders });
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAnalytics();
+  }, [store?.id]);
 
   if (!store) {
     return (
@@ -125,8 +161,8 @@ export const Dashboard: React.FC = () => {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-        <StatCard title={t('revenue')} value="$0.00" change="0" icon={DollarSign} positive />
-        <StatCard title={t('orders')} value="0" change="0" icon={ShoppingBag} positive />
+        <StatCard title={t('revenue')} value={`$${analytics?.totalRevenue?.toFixed(2) || '0.00'}`} change="0" icon={DollarSign} positive />
+        <StatCard title={t('orders')} value={analytics?.totalOrders || '0'} change="0" icon={ShoppingBag} positive />
         <StatCard title={t('conversion_rate')} value="0%" change="0" icon={TrendingUp} positive />
         <StatCard title={t('customers')} value="0" change="0" icon={Users} positive />
         <motion.div 
@@ -156,37 +192,74 @@ export const Dashboard: React.FC = () => {
               <option className="bg-night-blue">{t('this_year')}</option>
             </select>
           </div>
-          <div className="h-[350px] flex items-center justify-center bg-white/5 rounded-3xl border border-dashed border-white/10">
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('no_data_available')}</p>
+          <div className="h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#FACC15" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#FACC15" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#FFFFFF08" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748B', fontSize: 12, fontWeight: 700 }} 
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748B', fontSize: 12, fontWeight: 700 }} 
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0B1E3F', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.5)' }}
+                  itemStyle={{ color: '#FACC15', fontWeight: 700 }}
+                  labelStyle={{ color: '#FFFFFF', fontWeight: 800 }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="sales" 
+                  stroke="#FACC15" 
+                  strokeWidth={4}
+                  fillOpacity={1} 
+                  fill="url(#colorSales)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
         <div className="glass-cosmic p-10 rounded-[2.5rem] border border-white/5 flex flex-col">
           <h3 className="text-xl font-black tracking-tight mb-8 text-white">{t('best_sellers')}</h3>
           <div className="space-y-6 flex-1">
-            {store?.products.slice(0, 5).map((product, i) => (
-              <motion.div 
-                key={product.id} 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="flex items-center gap-5 group cursor-pointer"
-              >
-                <div className="relative overflow-hidden rounded-2xl border border-white/5">
-                  <img 
-                    src={product.image} 
-                    alt={product.name} 
-                    className="w-14 h-14 object-cover group-hover:scale-110 transition-transform duration-500" 
-                    referrerPolicy="no-referrer" 
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate group-hover:text-neon-yellow transition-colors text-white">{product.name}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">0 {t('units_sold')}</p>
-                </div>
-                <p className="text-sm font-black text-neon-green">${product.price}</p>
-              </motion.div>
-            )) || (
+            {store?.products && store.products.length > 0 ? (
+              store.products.slice(0, 5).map((product, i) => (
+                <motion.div 
+                  key={product.id || i} 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="flex items-center gap-5 group cursor-pointer"
+                >
+                  <div className="relative overflow-hidden rounded-2xl border border-white/5">
+                    <img 
+                      src={product.image} 
+                      alt={product.name} 
+                      className="w-14 h-14 object-cover group-hover:scale-110 transition-transform duration-500" 
+                      referrerPolicy="no-referrer" 
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate group-hover:text-neon-yellow transition-colors text-white">{product.name}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">0 {t('units_sold')}</p>
+                  </div>
+                  <p className="text-sm font-black text-neon-green">${product.price}</p>
+                </motion.div>
+              ))
+            ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-white/5 rounded-3xl border border-dashed border-white/10">
                 <ShoppingBag className="w-10 h-10 text-slate-600 mb-4" />
                 <p className="text-sm text-slate-500 font-medium">{t('no_sales_data')}<br />{t('generate_to_start')}</p>
@@ -203,9 +276,31 @@ export const Dashboard: React.FC = () => {
         {/* Orders Table */}
         <div className="glass-cosmic p-10 rounded-[2.5rem] border border-white/5">
           <h3 className="text-xl font-black tracking-tight text-white mb-8">{t('orders')}</h3>
-          <div className="h-[300px] flex items-center justify-center bg-white/5 rounded-3xl border border-dashed border-white/10">
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('no_orders_yet')}</p>
-          </div>
+          {recentOrders.length > 0 ? (
+            <div className="space-y-4">
+              {recentOrders.map((order: any, i: number) => (
+                <div key={order.id || i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-neon-green/10 text-neon-green rounded-xl flex items-center justify-center">
+                      <ShoppingBag className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">Order #{order.id}</p>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-black text-white">${order.totalAmount?.toFixed(2)}</p>
+                    <p className="text-[10px] text-neon-green font-bold uppercase tracking-widest">{order.status}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center bg-white/5 rounded-3xl border border-dashed border-white/10">
+              <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('no_orders_yet')}</p>
+            </div>
+          )}
         </div>
 
         {/* AI Suggestions */}

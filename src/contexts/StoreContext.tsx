@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { StoreData } from '../lib/gemini';
 import { PLANS } from '../constants';
 import { useAuth } from './AuthContext';
@@ -21,7 +23,10 @@ interface StoreContextType {
   };
   cancelSubscription: () => void;
   addProductToStore: (product: any) => void;
+  updateProduct: (productId: string, updates: any) => void;
+  deleteProduct: (productId: string) => void;
   importStoreData: (data: any) => void;
+  saveStore: (data: StoreData) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -29,7 +34,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [store, setStore] = useState<StoreData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [cart, setCart] = useState<{ product: any; quantity: number }[]>([]);
   const [planId, setPlanId] = useState('free');
   const [subscription, setSubscription] = useState<{
@@ -41,73 +46,82 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     planId: 'free'
   });
 
-  // Load store from DB when user changes
+  // Load store from Firestore when user changes
   useEffect(() => {
-    const loadStore = () => {
+    const loadStore = async () => {
       if (user) {
-        const saved = localStorage.getItem('vibe_user');
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (parsed.store) {
-              // Safely parse JSON strings, handle cases where they might already be objects
-              const theme = typeof parsed.store.theme_json === 'string' 
-                ? JSON.parse(parsed.store.theme_json) 
-                : (parsed.store.theme || parsed.store.theme_json);
-                
-              const pages = typeof parsed.store.pages_json === 'string' 
-                ? JSON.parse(parsed.store.pages_json) 
-                : (parsed.store.pages || parsed.store.pages_json);
+        setIsLoading(true);
+        try {
+          // Find store by userId
+          const shopsRef = collection(db, 'shops');
+          const q = query(shopsRef, where('userId', '==', user.uid));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            const storeDoc = querySnapshot.docs[0];
+            const storeData = storeDoc.data() as any;
+            
+            // Fetch products for this store
+            const productsRef = collection(db, 'products');
+            const pq = query(productsRef, where('shopId', '==', storeDoc.id));
+            const productsSnapshot = await getDocs(pq);
+            const products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-              setStore({
-                ...parsed.store,
-                theme: theme,
-                pages: pages,
-                products: parsed.products || []
-              });
-            }
-            setPlanId(user.plan_id || 'free');
-          } catch (e) {
-            console.error('Error parsing saved store data:', e);
+            setStore({
+              ...storeData,
+              id: storeDoc.id,
+              products: products
+            });
+          } else {
+            setStore(null);
           }
+          setPlanId(user.planId || 'free');
+        } catch (e) {
+          console.error('Error loading store from Firestore:', e);
+        } finally {
+          setIsLoading(false);
         }
       } else {
         setStore(null);
+        setIsLoading(false);
       }
     };
     loadStore();
   }, [user]);
 
-  // Save to DB and LocalStorage when store changes
-  useEffect(() => {
-    if (user && store) {
-      // Update local storage immediately for responsiveness
-      const saved = localStorage.getItem('vibe_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        localStorage.setItem('vibe_user', JSON.stringify({
-          ...parsed,
-          store: {
-            ...store,
-            theme_json: JSON.stringify(store.theme),
-            pages_json: JSON.stringify(store.pages)
-          },
-          products: store.products
-        }));
-      }
+  const saveStore = useCallback(async (data: StoreData) => {
+    if (!user) return;
+    
+    try {
+      const storeId = String(data.id || `shop-${user.uid}`);
+      const storeRef = doc(db, 'shops', storeId);
+      
+      const { products, ...storeMeta } = data;
+      
+      await setDoc(storeRef, {
+        ...storeMeta,
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
 
-      // Sync with server
-      fetch('/api/store/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user.id,
-          ...store,
-          products: store.products
-        })
-      }).catch(err => console.error('Failed to sync store with server:', err));
+      // Sync products
+      if (products) {
+        for (const product of products) {
+          const productId = product.id || `prod-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          await setDoc(doc(db, 'products', productId), {
+            ...product,
+            shopId: storeId,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        }
+      }
+      
+      setStore({ ...data, id: storeId } as any);
+    } catch (error) {
+      console.error('Error saving store:', error);
+      throw error;
     }
-  }, [store, user]);
+  }, [user]);
 
   const plan = PLANS.find(p => p.id === planId) || PLANS[0];
 
@@ -124,17 +138,52 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSubscription(prev => ({ ...prev, status: 'canceled' }));
   };
 
-  const addProductToStore = (product: any) => {
+  const addProductToStore = async (product: any) => {
+    if (!store || !user) return;
+    const productId = `prod-${Date.now()}`;
+    const newProduct = { ...product, id: productId, shopId: store.id };
+    
+    try {
+      await setDoc(doc(db, 'products', productId), newProduct);
+      setStore({
+        ...store,
+        products: [...store.products, newProduct]
+      });
+    } catch (error) {
+      console.error('Error adding product:', error);
+    }
+  };
+
+  const updateProduct = async (productId: string, updates: any) => {
     if (!store) return;
-    setStore({
-      ...store,
-      products: [...store.products, { ...product, id: `prod-${Date.now()}` }]
-    });
+    try {
+      await setDoc(doc(db, 'products', productId), updates, { merge: true });
+      setStore({
+        ...store,
+        products: store.products.map(p => p.id === productId ? { ...p, ...updates } : p)
+      });
+    } catch (error) {
+      console.error('Error updating product:', error);
+    }
+  };
+
+  const deleteProduct = async (productId: string) => {
+    if (!store) return;
+    try {
+      await deleteDoc(doc(db, 'products', productId));
+      setStore({
+        ...store,
+        products: store.products.filter(p => p.id !== productId)
+      });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+    }
   };
 
   const importStoreData = (data: any) => {
+    // This will be handled by saveStore after import
     if (!store) {
-      setStore({
+      const newStore: StoreData = {
         name: "Imported Store",
         niche: "Imported",
         description: "Imported from Shopify",
@@ -146,7 +195,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
         products: data.products,
         pages: data.pages
-      });
+      };
+      setStore(newStore);
       return;
     }
     setStore({
@@ -194,7 +244,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       subscription,
       cancelSubscription,
       addProductToStore,
-      importStoreData
+      updateProduct,
+      deleteProduct,
+      importStoreData,
+      saveStore
     }}>
       {children}
     </StoreContext.Provider>

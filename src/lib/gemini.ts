@@ -42,6 +42,7 @@ export interface Product {
 }
 
 export interface StoreData {
+  id?: string;
   name: string;
   niche: string;
   description: string;

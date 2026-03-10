@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, BarChart3, Settings, Eye, ShoppingBag, Crown, Video, Sparkles } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, BarChart3, Settings, Eye, ShoppingBag, Crown, Video, Sparkles, Package, Star } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,7 +15,7 @@ function cn(...inputs: ClassValue[]) {
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { plan, store } = useStore();
   const { user } = useAuth();
 
@@ -27,6 +27,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { icon: LayoutDashboard, label: t('dashboard'), path: '/dashboard' },
     { icon: MessageSquare, label: t('builder_title'), path: '/builder' },
     { icon: Sparkles, label: t('winning_products'), path: '/winning-products' },
+    { icon: Star, label: language === 'fr' ? 'Favoris' : 'Favorites', path: '/favorites' },
+    { icon: Package, label: language === 'fr' ? 'Produits' : 'Products', path: '/products' },
+    { icon: ShoppingBag, label: language === 'fr' ? 'Commandes' : 'Orders', path: '/orders' },
+    { icon: MessageSquare, label: language === 'fr' ? 'Messages' : 'Messages', path: '/messages' },
     { icon: Video, label: t('video_marketing'), path: '/video' },
     { icon: Eye, label: t('live_preview'), path: '/preview' },
     { icon: BarChart3, label: t('reports'), path: '/reports' },

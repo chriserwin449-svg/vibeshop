@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 import { 
   ShoppingCart, 
   Menu, 
@@ -382,6 +384,30 @@ export const Preview: React.FC = () => {
                   }]
                 });
               }}
+              onApprove={async (data, actions) => {
+                if (actions.order) {
+                  const details = await actions.order.capture();
+                  try {
+                    // Save order to Firestore
+                    await addDoc(collection(db, 'orders'), {
+                      shopId: store.id,
+                      customerName: details.payer.name?.given_name + ' ' + details.payer.name?.surname,
+                      customerEmail: details.payer.email_address,
+                      totalAmount: cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0),
+                      items: cart.map(i => ({ id: i.product.id, name: i.product.name, quantity: i.quantity, price: i.product.price })),
+                      status: 'paid',
+                      createdAt: serverTimestamp()
+                    });
+                    
+                    alert(language === 'fr' ? 'Commande passée avec succès !' : 'Order placed successfully!');
+                    // Clear cart and go home
+                    cart.forEach(item => removeFromCart(item.product.id));
+                    setView('home');
+                  } catch (error) {
+                    console.error('Error saving order:', error);
+                  }
+                }
+              }}
             />
           </PayPalScriptProvider>
           <p className="text-center text-slate-500 text-xs font-bold uppercase tracking-widest">
@@ -487,22 +513,46 @@ export const Preview: React.FC = () => {
                 </div>
                 
                 <div className="glass-cosmic p-12 rounded-[3.5rem] border border-white/5">
-                  <form className="space-y-6">
+                  <form className="space-y-6" onSubmit={async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    const name = formData.get('name') as string;
+                    const email = formData.get('email') as string;
+                    const message = formData.get('message') as string;
+                    
+                    if (!name || !email || !message) return;
+                    
+                    try {
+                      await addDoc(collection(db, 'messages'), {
+                        shopId: store.id,
+                        sender: name,
+                        email: email,
+                        content: message,
+                        createdAt: serverTimestamp(),
+                        read: false
+                      });
+                      
+                      alert(language === 'fr' ? 'Message envoyé avec succès !' : 'Message sent successfully!');
+                      (e.target as HTMLFormElement).reset();
+                    } catch (error) {
+                      console.error('Error sending message:', error);
+                    }
+                  }}>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2">{language === 'fr' ? 'Nom Complet' : 'Full Name'}</label>
-                      <input type="text" placeholder="John Doe" className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-neon-yellow/10 focus:border-neon-yellow transition-all font-bold text-white" />
+                      <input name="name" type="text" placeholder="John Doe" required className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-neon-yellow/10 focus:border-neon-yellow transition-all font-bold text-white" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2">{language === 'fr' ? 'Adresse Email' : 'Email Address'}</label>
-                      <input type="email" placeholder="john@example.com" className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-neon-yellow/10 focus:border-neon-yellow transition-all font-bold text-white" />
+                      <input name="email" type="email" placeholder="john@example.com" required className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-neon-yellow/10 focus:border-neon-yellow transition-all font-bold text-white" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2">{language === 'fr' ? 'Message' : 'Message'}</label>
-                      <textarea placeholder={language === 'fr' ? 'Comment pouvons-nous vous aider ?' : 'How can we help?'} rows={5} className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-neon-yellow/10 focus:border-neon-yellow transition-all font-bold resize-none text-white"></textarea>
+                      <textarea name="message" placeholder={language === 'fr' ? 'Comment pouvons-nous vous aider ?' : 'How can we help?'} rows={5} required className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-neon-yellow/10 focus:border-neon-yellow transition-all font-bold resize-none text-white"></textarea>
                     </div>
                     <button 
+                      type="submit"
                       className="w-full py-6 rounded-2xl font-black text-xl bg-neon-yellow text-night-blue shadow-2xl neon-glow-yellow hover:scale-[1.02] active:scale-[0.98] transition-all"
-                      onClick={(e) => e.preventDefault()}
                     >
                       {language === 'fr' ? 'Envoyer le Message' : 'Send Message'}
                     </button>

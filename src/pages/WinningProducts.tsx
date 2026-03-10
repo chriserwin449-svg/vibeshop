@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { collection, query, where, getDocs, addDoc, deleteDoc, doc, serverTimestamp, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { 
   Sparkles, 
   TrendingUp, 
@@ -38,29 +40,35 @@ export const WinningProducts: React.FC = () => {
     if (!store?.niche) return;
     setLoading(true);
     try {
-      // Try to fetch from cache first
-      const cacheResponse = await fetch(`/api/winning-products?niche=${encodeURIComponent(store.niche)}&language=${language}`);
-      if (cacheResponse.ok) {
-        const cachedData = await cacheResponse.json();
-        if (cachedData.success && cachedData.products && cachedData.products.length > 0) {
-          setProducts(cachedData.products);
+      // Try to fetch from Firestore cache first
+      const cacheId = `${store.niche.toLowerCase().replace(/\s+/g, '-')}-${language}`;
+      const cacheRef = doc(db, 'winning_products_cache', cacheId);
+      const cacheSnap = await getDoc(cacheRef);
+
+      if (cacheSnap.exists()) {
+        const cacheData = cacheSnap.data();
+        // Cache expires after 24 hours
+        const isExpired = Date.now() - cacheData.createdAt.toMillis() > 24 * 60 * 60 * 1000;
+        if (!isExpired) {
+          setProducts(cacheData.products);
           setLoading(false);
           return;
         }
       }
 
-      // If not in cache, generate new ones
+      // If not in cache or expired, generate new ones
       const data = await generateWinningProducts(store.niche, language);
       setProducts(data);
 
-      // Save to cache
-      await fetch('/api/winning-products/cache', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niche: store.niche, language, products: data })
+      // Save to Firestore cache
+      await setDoc(cacheRef, {
+        niche: store.niche,
+        language,
+        products: data,
+        createdAt: serverTimestamp()
       });
     } catch (error: any) {
-      console.error(error);
+      console.error('Error fetching winning products:', error);
       const isQuotaError = error.message?.includes("429") || error.status === 429 || error.message?.includes("RESOURCE_EXHAUSTED");
       if (isQuotaError) {
         alert(language === 'fr' 
@@ -73,36 +81,49 @@ export const WinningProducts: React.FC = () => {
   };
 
   const [favorites, setFavorites] = useState<any[]>([]);
-  const { user } = useAuth(); // Need to import useAuth
+  const { user } = useAuth();
 
   const fetchFavorites = async () => {
-    if (!user?.id) return;
+    if (!user?.uid) return;
     try {
-      const response = await fetch(`/api/favorites?userId=${user.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setFavorites(data);
-      }
+      const favsRef = collection(db, 'favorites');
+      const q = query(favsRef, where('userId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+      const favs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setFavorites(favs);
     } catch (error) {
-      console.error(error);
+      console.error('Error fetching favorites:', error);
     }
   };
 
   useEffect(() => {
     fetchFavorites();
-  }, [user?.id]);
+  }, [user?.uid]);
 
   const handleSaveFavorite = async (product: WinningProduct) => {
-    if (!user?.id) return;
+    if (!user?.uid) return;
+    
+    const existingFav = favorites.find(f => f.product.name === product.name);
+    if (existingFav) {
+      // Remove from favorites
+      try {
+        await deleteDoc(doc(db, 'favorites', existingFav.id));
+        setFavorites(prev => prev.filter(f => f.id !== existingFav.id));
+      } catch (error) {
+        console.error('Error removing favorite:', error);
+      }
+      return;
+    }
+
     try {
-      await fetch('/api/favorites/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, product })
+      const docRef = await addDoc(collection(db, 'favorites'), {
+        userId: user.uid,
+        product,
+        createdAt: serverTimestamp()
       });
-      fetchFavorites();
+      setFavorites(prev => [...prev, { id: docRef.id, userId: user.uid, product }]);
     } catch (error) {
-      console.error(error);
+      console.error('Error saving favorite:', error);
     }
   };
 

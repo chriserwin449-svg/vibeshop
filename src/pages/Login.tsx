@@ -44,18 +44,7 @@ export const Login: React.FC = () => {
         className="w-full max-w-md relative z-10"
       >
         <div className="text-center mb-10">
-          <motion.div 
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            className="w-24 h-24 bg-white/5 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-xl border border-white/10"
-          >
-            <Logo variant="gold" className="w-16 h-16" />
-          </motion.div>
-          <Logo showText variant="gold" className="hidden" />
-          <div className="flex flex-col items-center">
-            <h1 className="text-4xl font-black text-[#FDE047] tracking-tight">VibeShop</h1>
-            <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-[#FDE047]/70 mt-1">Your online store powered by AI</span>
-          </div>
+          <Logo showText variant="gold" className="w-20 h-20 mx-auto mb-4" />
           <p className="text-slate-400 font-medium mt-4">{language === 'fr' ? 'Bon retour parmi nous !' : 'Welcome back!'}</p>
         </div>
 

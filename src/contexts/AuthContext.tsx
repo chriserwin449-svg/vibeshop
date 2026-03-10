@@ -1,4 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut,
+  updateProfile
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 
 interface AuthContextType {
   user: any | null;
@@ -15,71 +24,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('vibe_user');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setUser(parsed.user);
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Fetch additional user data from Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          setUser({ ...firebaseUser, ...userDoc.data() });
+        } else {
+          setUser(firebaseUser);
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`Login failed with status ${res.status}: ${errorText}`);
-        return false;
-      }
-
-      const data = await res.json();
-      if (data.success) {
-        setUser(data.user);
-        localStorage.setItem('vibe_user', JSON.stringify(data));
-        return true;
-      }
-      return false;
+      await signInWithEmailAndPassword(auth, email, password);
+      return true;
     } catch (error) {
-      console.error('Network error during login:', error);
+      console.error('Login error:', error);
       return false;
     }
   };
 
   const register = async (name: string, email: string, password: string, planId: string) => {
     try {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, plan_id: planId })
-      });
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`Registration failed with status ${res.status}: ${errorText}`);
-        return false;
-      }
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
 
-      const data = await res.json();
-      if (data.success) {
-        setUser(data.user);
-        localStorage.setItem('vibe_user', JSON.stringify({ user: data.user }));
-        return true;
-      }
-      return false;
+      await updateProfile(firebaseUser, { displayName: name });
+
+      // Create user document in Firestore
+      const userData = {
+        uid: firebaseUser.uid,
+        name,
+        email,
+        planId: planId || 'free',
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+
+      setUser({ ...firebaseUser, ...userData });
+      return true;
     } catch (error) {
-      console.error('Network error during registration:', error);
+      console.error('Registration error:', error);
       return false;
     }
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('vibe_user');
+    signOut(auth);
     window.location.href = '/login';
   };
 

@@ -18,7 +18,6 @@
     "@types/body-parser": "^1.19.6",
     "@types/cors": "^2.8.19",
     "@vitejs/plugin-react": "^5.0.4",
-    "better-sqlite3": "^12.4.1",
     "body-parser": "^2.2.2",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",

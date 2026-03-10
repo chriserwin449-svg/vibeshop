@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "planId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Shop": {
+      "title": "Shop",
+      "description": "Store information",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "niche": { "type": "string" },
+        "description": { "type": "string" },
+        "theme": { "type": "object" },
+        "pages": { "type": "object" },
+        "published": { "type": "boolean" },
+        "slug": { "type": "string" }
+      },
+      "required": ["userId", "name", "slug"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Product information",
+      "type": "object",
+      "properties": {
+        "shopId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "category": { "type": "string" },
+        "winning": { "type": "boolean" },
+        "profitMargin": { "type": "number" },
+        "demandScore": { "type": "number" }
+      },
+      "required": ["shopId", "name", "price"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order information",
+      "type": "object",
+      "properties": {
+        "shopId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "items": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["shopId", "totalAmount", "status"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "User favorite products",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "product": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "product"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Customer messages",
+      "type": "object",
+      "properties": {
+        "shopId": { "type": "string" },
+        "sender": { "type": "string" },
+        "content": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["shopId", "sender", "content"]
+    },
+    "Analytics": {
+      "title": "Analytics",
+      "description": "Store analytics data",
+      "type": "object",
+      "properties": {
+        "shopId": { "type": "string" },
+        "views": { "type": "number" },
+        "sales": { "type": "number" },
+        "revenue": { "type": "number" }
+      },
+      "required": ["shopId"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of users"
+    },
+    "shops": {
+      "schema": "Shop",
+      "description": "Collection of stores"
+    },
+    "products": {
+      "schema": "Product",
+      "description": "Collection of products"
+    },
+    "orders": {
+      "schema": "Order",
+      "description": "Collection of orders"
+    },
+    "favorites": {
+      "schema": "Favorite",
+      "description": "Collection of user favorites"
+    },
+    "messages": {
+      "schema": "Message",
+      "description": "Collection of messages"
+    },
+    "analytics": {
+      "schema": "Analytics",
+      "description": "Collection of analytics"
+    }
+  }
+}

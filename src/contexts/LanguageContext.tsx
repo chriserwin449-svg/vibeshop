@@ -109,6 +109,7 @@ export const translations: Translations = {
   view_all: { en: 'View All', fr: 'Voir Tout' },
   no_sales_data: { en: 'No sales data yet.', fr: 'Pas encore de données de vente.' },
   generate_to_start: { en: 'Generate your store to start.', fr: 'Générez votre boutique pour commencer.' },
+  no_orders_yet: { en: 'No orders yet.', fr: 'Aucune commande pour le moment.' },
   current_store: { en: 'Current Store', fr: 'Boutique Actuelle' },
   payment_status: { en: 'Payment Status', fr: 'Statut du Paiement' },
   gateways_active: { en: 'Stripe & PayPal Active', fr: 'Stripe & PayPal Actifs' },
@@ -210,6 +211,7 @@ export const translations: Translations = {
   source_url: { en: 'Source URL', fr: 'URL Source' },
   items: { en: 'Items', fr: 'Articles' },
   about_contact: { en: 'About & Contact', fr: 'À propos & Contact' },
+  products: { en: 'Products', fr: 'Produits' },
 };
 
 interface LanguageContextType {
